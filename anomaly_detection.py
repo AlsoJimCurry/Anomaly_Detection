@@ -4,20 +4,42 @@ from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
-import matplotlib as mplt
+from scipy.spatial import ConvexHull, convex_hull_plot_2d, Delaunay
+from sklearn.neighbors import DistanceMetric
 
 
 
 def main():
+    scaler, pca, cluster = learnNormalState()
+    test_frame = pd.read_csv("test.csv")
+    frameOK = testNewFrame(test_frame, scaler, pca, cluster)
+
+def testNewFrame(df, scaler, pca, cluster):
+    df_scaled = scaler.transform(df)
+    test_point_pca = pca.transform(df_scaled)[0]
+
+    for c in cluster:
+        cluster_array = np.array(c)
+        hull = Delaunay(cluster_array)
+        if hull.find_simplex(test_point_pca) >= 0:
+            print(f"OK: {df}")
+            return True 
+    print(f"ANOMALY:\n {df}")        
+    return False
+
+
+
+
+        
+
+def learnNormalState():
     df = pd.read_csv("data.csv")
     scaler = StandardScaler().fit(df)
-    df = scaler.transform(df)
-    pca = PCA(n_components=2).fit(df)
-    df = pca.transform(df)
+    df_scaled = scaler.transform(df)
+    pca = PCA(n_components=2).fit(df_scaled)
+    train_data = pca.transform(df_scaled)
 
-    db = DBSCAN(eps=0.55, min_samples=40).fit(df)
-    core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
-    core_samples_mask[db.core_sample_indices_] = True
+    db = DBSCAN(eps=0.4, min_samples=25).fit(train_data)
     labels = db.labels_
 
     n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
@@ -25,37 +47,26 @@ def main():
     print('Estimated number of clusters: %d' % n_clusters_)
     print('Estimated number of noise points: %d' % n_noise_)
 
-    
-    test = pd.read_csv("test.csv")
-    test = scaler.transform(test)
-    test = pca.transform(test)
-    test_labels = db.fit_predict(test)
-    print(f"Test prediction label = {test_labels}")
-    print(df[0])
-    print(test[0])
+    cluster = [[] for i in range(0, n_clusters_)]
+    for i in range(0, len(db.labels_)):
+        label = db.labels_[i]
+        if label != -1:
+            cluster[label].append(train_data[i])
 
-#def show_plot(labels, df, core_samples_mask, n_clusters_):
-#    # Plot results
-#    unique_labels = set(labels)
-#    colors = [mplt.cm.Spectral(each)
-#              for each in np.linspace(0, 1, len(unique_labels))]
-#    for k, col in zip(unique_labels, colors):
-#        if k == -1:
-#            # Black used for noise.
-#            col = [0, 0, 0, 1]
-#
-#        class_member_mask = (labels == k)
-#
-#        xy = df[class_member_mask & core_samples_mask]
-#        plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
-#                 markeredgecolor='k', markersize=14)
-#
-#        xy = df[class_member_mask & ~core_samples_mask]
-#        plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
-#                 markeredgecolor='k', markersize=6)
-#
-#    plt.title('Estimated number of clusters: %d' % n_clusters_)
-#    plt.show()
+    # Plot all Points
+    point_array = np.array(train_data)
+    plt.plot(point_array[:,0], point_array[:,1], 'o')
+
+    # Plot convex hull
+    for c in cluster:
+        cluster_array = np.array(c)
+        hull = ConvexHull(cluster_array)
+        #plt.plot(cluster_array[:,0], cluster_array[:,1], 'o')
+        for simplex in hull.simplices:
+            plt.plot(cluster_array[simplex, 0], cluster_array[simplex, 1], 'k-', color='r')
+    plt.show()
+
+    return scaler, pca, cluster
 
 if __name__ == "__main__":
     main()

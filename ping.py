@@ -23,7 +23,7 @@ def ping_ip(current_ip_address):
         latency.pop(0)
         return latency, jitter
     except Exception:
-            return False
+            return None, None
  
 if __name__ == '__main__':
     ip = '172.16.4.63'

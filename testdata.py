@@ -5,11 +5,11 @@ with open("resources/data.csv", "w", newline='') as file:
     writer = csv.writer(file)
     writer.writerow(["priority", "latency", "jitter", "framelength"])
     
-    for i in range(1,500):
+    for i in range(1,5000):
         writer.writerow([1, random.uniform(0.3, 0.8), random.uniform(0, 0.05), 64])
     
-    for i in range(1,500):
+    for i in range(1,2000):
         writer.writerow([5, random.uniform(0.3, 1.2), random.uniform(0, 0.05), 64])
  
-    for i in range(1,700):
+    for i in range(1,7000):
         writer.writerow([10, random.uniform(0.3, 5), random.uniform(0, 1), 64])

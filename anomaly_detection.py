@@ -3,16 +3,18 @@ import numpy as np
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from sklearn.neighbors import DistanceMetric
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull, convex_hull_plot_2d, Delaunay
-from sklearn.neighbors import DistanceMetric
+
 
 
 
 def main():
     scaler, pca, cluster = learnNormalState()
-    test_frame = pd.read_csv("test.csv")
+    test_frame = pd.read_csv("resources/test.csv")
     frameOK = testNewFrame(test_frame, scaler, pca, cluster)
+    
 
 def testNewFrame(df, scaler, pca, cluster):
     df_scaled = scaler.transform(df)
@@ -26,14 +28,10 @@ def testNewFrame(df, scaler, pca, cluster):
             return True 
     print(f"ANOMALY:\n {df}")        
     return False
-
-
-
-
-        
+      
 
 def learnNormalState():
-    df = pd.read_csv("data.csv")
+    df = pd.read_csv("resources/data.csv")
     scaler = StandardScaler().fit(df)
     df_scaled = scaler.transform(df)
     pca = PCA(n_components=2).fit(df_scaled)

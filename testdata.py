@@ -1,7 +1,7 @@
 import random
 import csv
 
-with open("data.csv", "w", newline='') as file:
+with open("resources/data.csv", "w", newline='') as file:
     writer = csv.writer(file)
     writer.writerow(["priority", "latency", "jitter", "framelength"])
     

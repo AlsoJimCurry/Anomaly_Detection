@@ -11,11 +11,14 @@ from sklearn.decomposition import PCA
 from sklearn.neighbors import DistanceMetric
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull, convex_hull_plot_2d, Delaunay
+from os import path
 import subprocess
+from tcp_latency import measure_latency
 import platform
 import random
+import csv
 
-ip = '172.16.4.63'
+ip = '172.16.3.203'
 
 
 def main():
@@ -39,13 +42,26 @@ def testNewFrame(df, scaler, pca, cluster):
       
 
 def learnNormalState():
-    df = pd.read_csv("resources/data.csv")
+    #df = pd.read_csv("resources/data.csv")
+     
+    if not path.isfile("resources/real_data.csv") or path.getsize("resources/real_data.csv") == 0:
+        print("Creating trainigs data...")
+        with open("resources/real_data.csv", "w", newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["priority", "latency", "jitter", "framelength"])
+            for i in range(0,1000):
+                latency, jitter, framelength = get_tcp_latency(ip)
+                writer.writerow([1, latency, jitter, framelength])
+                print(f"#{i}")
+    
+    # Create cluster on collected data
+    df = pd.read_csv("resources/real_data.csv")
     scaler = StandardScaler().fit(df)
     df_scaled = scaler.transform(df)
     pca = PCA(n_components=2).fit(df_scaled)
     train_data = pca.transform(df_scaled)
 
-    db = DBSCAN(eps=0.3, min_samples=25).fit(train_data)
+    db = DBSCAN(eps=0.6, min_samples=10).fit(train_data)
     labels = db.labels_
 
     n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
@@ -75,9 +91,10 @@ def learnNormalState():
 
 def createTestFrame(ip):
     latency, jitter, framelength = sendPing(ip)
-    return pd.DataFrame([[1, latency, jitter, framelength]], columns=['priority', 'latency', 'jitter', 'framelength'], dtype = float)
+    return pd.DataFrame([[1, latency, jitter, 64]], columns=['priority', 'latency', 'jitter', 'framelength'], dtype = float)
 
 def sendPing(ip):
+    # TODO: Use fping for faster ping
     packet_size = random.randint(56, 248) # + 8 Byte icmp header
     latency = []
     jitter = []
@@ -97,6 +114,13 @@ def sendPing(ip):
     except:
         print(f"Unable to reach {ip}")
         quit()
+
+def get_tcp_latency(ip):
+    print(f"ping {ip}")
+    latency = measure_latency(host=ip, runs=2, timeout=0.005, wait=0.05)
+    print(latency)
+    jitter = abs(latency[0] - latency[1])
+    return latency [1], jitter, 64
 
 if __name__ == "__main__":
     main()

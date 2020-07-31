@@ -19,6 +19,7 @@ import random
 import csv
 import logging
 import datetime
+import time
 
 
 def main():
@@ -39,10 +40,11 @@ Check connection to ip: {ip}
 Options:
 1. Change ip
 2. Change DBSCAN parameter
-3. Learn new network''')
+3. Learn known network''')
         if scaler != None:
             print("4. Test network")
-        print("\n5. Exit")
+            print("5. Start automated testing")
+        print("\n6. Exit")
         selected = input()
         if selected == "1":
             ip = input("Enter a new ip: ")
@@ -52,12 +54,24 @@ Options:
             min_samples = int(input("min_samples = "))
             logging.info(f"Changed DBSCAN eps={epsilon}, min_samples={min_samples}")
         if selected == "3":
+            print("\033[H\033[J")
+            print("To create new trainings data delete ./resources/real_data.csv")
+            input("Press Enter to continue...")
             scaler, pca, cluster = learnNormalState(ip, epsilon, min_samples)
         if selected == "4":
             t = datetime.datetime.now()
             test_frame = createTestFrame(ip) #pd.read_csv("resources/test.csv")
             frameOK = testNewFrame(test_frame, scaler, pca, cluster, t)
         if selected == "5":
+            print("\033[H\033[J") # Clear the console
+            interval = float(input("Interval in seconds: "))
+            print("Started testing - See log for results...")
+            while True:
+                t = datetime.datetime.now()
+                test_frame = createTestFrame(ip) #pd.read_csv("resources/test.csv")
+                frameOK = testNewFrame(test_frame, scaler, pca, cluster, t)
+                time.sleep(interval)
+        if selected == "6":
             quit()
     
 
@@ -69,17 +83,13 @@ def testNewFrame(df, scaler, pca, cluster, time):
         cluster_array = np.array(c)
         hull = Delaunay(cluster_array)
         if hull.find_simplex(test_point_pca) >= 0:
-            print(f"OK: {df}")
             logging.info(f"{time} OK: {df}")
-            return True
-    print(f"ANOMALY:\n {df}") 
+            return True 
     logging.warning(f"{time} ANOMALY:\n {df}")       
     return False
       
 
-def learnNormalState(ip, epsilon, min_samp):
-    #df = pd.read_csv("resources/data.csv")
-     
+def learnNormalState(ip, epsilon, min_samp):  
     if not path.isfile("resources/real_data.csv") or path.getsize("resources/real_data.csv") == 0:
         print("Creating trainigs data...")
         logging.info("Creating new trainings data")
@@ -87,9 +97,9 @@ def learnNormalState(ip, epsilon, min_samp):
             writer = csv.writer(file)
             writer.writerow(["priority", "latency", "jitter", "framelength"])
             for i in range(0,1000):
-                latency, jitter, framelength = get_tcp_latency(ip)
+                latency, jitter, framelength = sendPing(ip)
                 writer.writerow([1, latency, jitter, framelength])
-                print(f"#{i}")
+                print(f"#{i}/1000")
     
     # Create cluster on collected data
     df = pd.read_csv("resources/real_data.csv")
@@ -128,11 +138,10 @@ def learnNormalState(ip, epsilon, min_samp):
     return scaler, pca, cluster
 
 def createTestFrame(ip):
-    latency, jitter, _ = sendPing(ip)
-    return pd.DataFrame([[1, latency, jitter, 64]], columns=['priority', 'latency', 'jitter', 'framelength'], dtype = float)
+    latency, jitter, framelength = sendPing(ip)
+    return pd.DataFrame([[1, latency, jitter, framelength]], columns=['priority', 'latency', 'jitter', 'framelength'], dtype = float)
 
 def sendPing(ip):
-    # TODO: Use fping for faster ping
     packet_size = random.randint(56, 248) # + 8 Byte icmp header
     latency = []
     jitter = []
